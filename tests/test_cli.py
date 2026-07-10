@@ -19,7 +19,8 @@ class CliTests(unittest.TestCase):
             exit_code = main(["scan", str(FIXTURES / "risky_repo"), "--format", "json", "--fail-on", "high"])
         payload = json.loads(buffer.getvalue())
         self.assertEqual(1, exit_code)
-        self.assertEqual(5, payload["finding_count"])
+        self.assertEqual(6, payload["finding_count"])
+        self.assertEqual(5, payload["summary"]["high"])
         self.assertEqual(1, payload["summary"]["medium"])
 
     def test_text_output_and_zero_exit_for_safe_repo(self) -> None:
