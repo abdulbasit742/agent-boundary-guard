@@ -42,7 +42,7 @@ RULES = (
         severity="high",
         message="Wildcard origin or permission detected in agent or MCP configuration.",
         pattern=re.compile(
-            r"(?i)(allowed_origins?|cors|permissions?|origins?)\s*[=:].*(\*|write-all|all)"
+            r"(?i)[\"']?(allowed_origins?|cors|permissions?|origins?)[\"']?\s*[:=]\s*.*(\*|write-all|all)"
         ),
         scope="config",
     ),
@@ -51,7 +51,7 @@ RULES = (
         severity="medium",
         message="Overly broad filesystem root detected in agent or MCP configuration.",
         pattern=re.compile(
-            r"(?i)(allowed_paths?|roots?|directories|filesystem)\s*[=:].*((['\"]/(['\"]|\s|,|\]))|(['\"]~(['\"]|\s|,|\]))|(['\"]\.\.(['\"]|\s|,|\])))"
+            r"(?i)[\"']?(allowed_paths?|roots?|directories|filesystem)[\"']?\s*[:=]\s*.*((['\"]/(['\"]|\s|,|\]))|(['\"]~(['\"]|\s|,|\]))|(['\"]\.\.(['\"]|\s|,|\])))"
         ),
         scope="config",
     ),
@@ -60,7 +60,7 @@ RULES = (
         severity="high",
         message="Dangerous shell or command execution enablement detected.",
         pattern=re.compile(
-            r"(?i)((shell|command|exec|subprocess)[^\n]{0,30}[=:]\s*(true|always|enabled|allow)|bash -lc|sh -c|eval\()"
+            r"(?i)([\"']?(shell|command|exec|subprocess)[\"']?\s*[:=]\s*(true|always|enabled|allow)|bash -lc|sh -c|eval\()"
         ),
         scope="config",
     ),
@@ -69,7 +69,7 @@ RULES = (
         severity="high",
         message="Hardcoded secret-like value detected in configuration.",
         pattern=re.compile(
-            r"(?i)(api[_-]?key|token|secret|password)\s*[=:]\s*['\"]?[A-Za-z0-9_\-]{8,}"
+            r"(?i)[\"']?(api[_-]?key|token|secret|password)[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9_\-]{8,}"
         ),
         scope="config",
     ),
