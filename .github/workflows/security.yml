@@ -1,0 +1,26 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature/**
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: pip install -e .
+      - name: Compile source and tests
+        run: python -m compileall src tests scripts
+      - name: Check curated paths for obvious committed secret material
+        run: python scripts/curated_secret_check.py

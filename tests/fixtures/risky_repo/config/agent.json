@@ -1,0 +1,6 @@
+{
+  "allowed_origins": ["*"],
+  "allowed_paths": ["/"],
+  "shell": true,
+  "api_key": "sk_live_12345678"
+}
