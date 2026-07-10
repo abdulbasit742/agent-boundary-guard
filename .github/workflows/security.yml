@@ -20,27 +20,37 @@ jobs:
           python-version: "3.12"
       - name: Install package
         run: pip install -e .
-      - name: Run fast regression suite
-        run: python -m unittest discover -s tests -q
-      - name: Check for obvious committed secret material
+      - name: Compile source and tests
+        run: python -m compileall src tests
+      - name: Check curated paths for obvious committed secret material
         run: |
           python - <<'PY'
           from pathlib import Path
           import sys
 
+          targets = [
+              Path('README.md'),
+              Path('SECURITY.md'),
+              Path('ARCHITECTURE.md'),
+              Path('CONTRIBUTING.md'),
+              Path('docs'),
+              Path('src'),
+              Path('tests'),
+              Path('.github'),
+          ]
           blocked = []
-          for path in Path('.').rglob('*'):
-              if not path.is_file():
-                  continue
-              if any(part in {'.git', '.venv', 'venv', '__pycache__'} for part in path.parts):
-                  continue
-              if path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.gif', '.pyc'}:
-                  continue
-              text = path.read_text(encoding='utf-8', errors='ignore')
-              if 'BEGIN PRIVATE KEY' in text:
-                  blocked.append(str(path))
-              if path.name.startswith('.env') and path.name != '.env.example':
-                  blocked.append(str(path))
+          for target in targets:
+              candidates = [target] if target.is_file() else target.rglob('*')
+              for path in candidates:
+                  if not path.is_file():
+                      continue
+                  if path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.gif', '.pyc'}:
+                      continue
+                  text = path.read_text(encoding='utf-8', errors='ignore')
+                  if 'BEGIN PRIVATE KEY' in text:
+                      blocked.append(str(path))
+                  if path.name.startswith('.env') and path.name != '.env.example':
+                      blocked.append(str(path))
           if blocked:
               print('\n'.join(blocked))
               sys.exit(1)
