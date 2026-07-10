@@ -1,0 +1,47 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature/**
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: pip install -e .
+      - name: Run fast regression suite
+        run: python -m unittest discover -s tests -q
+      - name: Check for obvious committed secret material
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+
+          blocked = []
+          for path in Path('.').rglob('*'):
+              if not path.is_file():
+                  continue
+              if any(part in {'.git', '.venv', 'venv', '__pycache__'} for part in path.parts):
+                  continue
+              if path.suffix.lower() in {'.png', '.jpg', '.jpeg', '.gif', '.pyc'}:
+                  continue
+              text = path.read_text(encoding='utf-8', errors='ignore')
+              if 'BEGIN PRIVATE KEY' in text:
+                  blocked.append(str(path))
+              if path.name.startswith('.env') and path.name != '.env.example':
+                  blocked.append(str(path))
+          if blocked:
+              print('\n'.join(blocked))
+              sys.exit(1)
+          PY

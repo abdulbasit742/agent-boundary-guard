@@ -1,0 +1,6 @@
+{
+  "allowed_origins": ["https://example.com"],
+  "allowed_paths": ["./workspace"],
+  "shell": false,
+  "api_key": "example-token"
+}
