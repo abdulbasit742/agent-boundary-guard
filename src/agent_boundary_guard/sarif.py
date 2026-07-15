@@ -41,7 +41,9 @@ def _sarif_level(severity: str) -> str:
 
 
 def _normalize_uri(path: str) -> str:
-    normalized = path.replace("\\", "/").lstrip("./")
+    normalized = path.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
     return str(PurePosixPath(normalized))
 
 
