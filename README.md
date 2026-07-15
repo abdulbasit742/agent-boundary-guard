@@ -12,17 +12,19 @@ It focuses on practical repo-level signals that often show up before incidents:
 
 ## Why this exists
 
-Recent momentum around agent security and MCP tooling has made one failure mode especially costly: teams ship agent instructions and tool configs that quietly widen autonomy boundaries long before they notice. Agent Boundary Guard gives maintainers a fast, local-first gate they can run in CI or pre-merge review.
+Teams can quietly widen an agent's autonomy boundary through a prompt or configuration change long before the risk is visible at runtime. Agent Boundary Guard provides a fast, local-first gate for developer machines, pull requests, and CI.
 
 ## Features
 
 - zero runtime dependencies
-- text or JSON output
+- text, JSON, and SARIF 2.1.0 output
 - severity-aware exit codes
-- recursive repo scanning with sane ignore rules
-- focused heuristics for prompt/config boundary failures
+- deterministic fingerprints for code-scanning deduplication
+- recursive repository scanning with sane ignore rules
+- focused heuristics for prompt and configuration boundary failures
+- no network calls or runtime command execution
 
-## Rules in the initial release
+## Rules
 
 | Rule ID | Severity | What it flags |
 | --- | --- | --- |
@@ -40,22 +42,87 @@ cd agent-boundary-guard
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-python -m agent_boundary_guard scan .
+agent-boundary-guard scan .
 ```
+
+On Windows PowerShell, activate the environment with `.venv\Scripts\Activate.ps1`.
 
 ### JSON output
 
 ```bash
-python -m agent_boundary_guard scan path/to/repo --format json
+agent-boundary-guard scan path/to/repo --format json
 ```
 
-### Fail only on higher severities
+### SARIF output
+
+Print a SARIF 2.1.0 report to stdout:
 
 ```bash
-python -m agent_boundary_guard scan path/to/repo --fail-on high
+agent-boundary-guard scan path/to/repo --format sarif
 ```
 
-## Example output
+Write the report to a file while preserving the configured exit code:
+
+```bash
+agent-boundary-guard scan path/to/repo \
+  --format sarif \
+  --output agent-boundary-guard.sarif \
+  --fail-on high
+```
+
+SARIF results intentionally omit matched source snippets. Locations, rule metadata, severity, and a deterministic fingerprint remain available without copying a possible secret-like value into a hosted code-scanning report.
+
+### Fail only on selected severities
+
+```bash
+agent-boundary-guard scan path/to/repo --fail-on high
+```
+
+The report is emitted before threshold evaluation. Exit code `1` means at least one finding met the selected threshold; exit code `2` means the command could not produce the report.
+
+## GitHub Code Scanning
+
+Use `continue-on-error` for the scan step so the SARIF file can still be uploaded, then enforce the original scanner outcome after upload:
+
+```yaml
+name: agent-boundary-guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - id: boundary_scan
+        continue-on-error: true
+        run: >-
+          agent-boundary-guard scan .
+          --format sarif
+          --output agent-boundary-guard.sarif
+          --fail-on high
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: agent-boundary-guard.sarif
+      - name: Enforce boundary policy
+        if: steps.boundary_scan.outcome == 'failure'
+        run: exit 1
+```
+
+Fork-based pull requests may not receive `security-events: write`; keep the local JSON/text report available as the fallback review artifact.
+
+## Example text output
 
 ```text
 Agent Boundary Guard: 4 finding(s)
@@ -66,19 +133,22 @@ Agent Boundary Guard: 4 finding(s)
 Summary: critical=0 high=3 medium=1 low=0
 ```
 
-## Repository workflow
+## Development
 
-1. Implement the highest-value ready skill from `docs/SKILL_REGISTRY.md`.
-2. Add tests for the acceptance criteria first or alongside the change.
-3. Run `python -m unittest discover -s tests -v`.
-4. Re-run a changed-area security audit and update `docs/security-audit.md`.
-5. Open a focused PR with sanitized validation evidence.
+```bash
+python -m unittest discover -s tests -v
+python -m compileall src tests scripts
+agent-boundary-guard scan tests/fixtures/risky_repo --format sarif --fail-on critical
+```
+
+The reference review behind the reporting design is recorded in [`docs/reference-review.md`](docs/reference-review.md).
 
 ## Security posture
 
 - no network calls
 - no shell execution in runtime code
 - no external runtime dependencies
+- SARIF excludes raw finding snippets
 - CI workflows use explicit least-privilege permissions
 
 See [SECURITY.md](SECURITY.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [docs/security-audit.md](docs/security-audit.md) for details.
