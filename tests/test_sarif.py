@@ -62,6 +62,21 @@ class SarifTests(unittest.TestCase):
 
         self.assertEqual(first, second)
 
+    def test_dot_directory_is_preserved_in_artifact_uri(self) -> None:
+        finding = Finding(
+            "ABG004",
+            "high",
+            "message",
+            ".github/workflows/agent.yml",
+            3,
+            "shell: true",
+        )
+
+        result = build_sarif([finding])["runs"][0]["results"][0]
+        uri = result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+
+        self.assertEqual(".github/workflows/agent.yml", uri)
+
 
 if __name__ == "__main__":
     unittest.main()
