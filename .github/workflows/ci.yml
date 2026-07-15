@@ -25,7 +25,28 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install package
         run: pip install -e .
+      - name: Compile source and tests
+        run: python -m compileall src tests
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
-      - name: CLI smoke test
+      - name: JSON CLI smoke test
         run: python -m agent_boundary_guard scan tests/fixtures/risky_repo --format json --fail-on critical
+      - name: SARIF CLI smoke test
+        run: |
+          python -m agent_boundary_guard scan tests/fixtures/risky_repo \
+            --format sarif \
+            --output "$RUNNER_TEMP/agent-boundary-guard.sarif" \
+            --fail-on critical
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = Path(os.environ["RUNNER_TEMP"]) / "agent-boundary-guard.sarif"
+          payload = json.loads(report.read_text(encoding="utf-8"))
+          run = payload["runs"][0]
+          assert payload["version"] == "2.1.0"
+          assert len(run["tool"]["driver"]["rules"]) == 5
+          assert len(run["results"]) == 6
+          assert "snippet" not in report.read_text(encoding="utf-8")
+          PY
